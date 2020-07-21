@@ -8,14 +8,22 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 #define PHARENDIRECT 100
 #define PHAREDIRECT 600
 
-#define LOWER_SERVO 14
-#define UPPER_SERVO 15
+#define LOWER_SERVO 15
+#define UPPER_SERVO 14
 
 #define LOWER_UNDEPLOYED 185
 #define LOWER_DEPLOYED 40
 
 #define UPPER_UNDEPLOYED 313
 #define UPPER_DEPLOYED 2
+
+#define LIGHT 12
+#define LIGHT_ON 4095
+#define LIGHT_OFF 0
+
+#define TOP_SERVO 13
+#define TOP_UNDEPLOYED 300
+#define TOP_DEPLOYED 0
 
 void setAngle(int slot, int angle) {
   pwm.setPWM(slot, 0, getPWM(angle));
@@ -35,11 +43,17 @@ int currentPharePwm = 600;
 int currentLowerPWM = 0;
 int currentUpperPWM = 0;
 
+int currentLightPWM = 0;
+int currentTopPWM = 0;
+
 bool isLowerDeployed = false;
 int lowerProcessing = -1;
 
 bool isUpperDeployed = false;
 int upperProcessing = -1;
+
+bool isTopDeployed = false;
+int topProcessing = -1;
 
 void setup()
 {
@@ -48,6 +62,8 @@ void setup()
   pwm.setPWMFreq(60);
   currentLowerPWM = getPWM(LOWER_UNDEPLOYED);
   currentUpperPWM = getPWM(UPPER_UNDEPLOYED);
+  currentLightPWM = LIGHT_OFF;
+  currentTopPWM = getPWM(TOP_UNDEPLOYED);
 }
 
 void loop()
@@ -55,6 +71,7 @@ void loop()
   if (!engaged) {
     switchStatus = !digitalRead(2);
     if (switchStatus) {
+      currentLightPWM = LIGHT_ON;
       Serial.println("Engaged! Toggle lower deployment");
       if (!isLowerDeployed) {
         lowerProcessing = LOWER_UNDEPLOYED;
@@ -127,7 +144,7 @@ void loop()
   if (lowerProcessing != -1) {
     if (!isLowerDeployed) {
       if (lowerProcessing == LOWER_DEPLOYED) {
-        Serial.println("Deployed!");
+        Serial.println("LOWER Deployed!");
         lowerProcessing = -1;
         isLowerDeployed = true;
 
@@ -157,10 +174,14 @@ void loop()
       }
     }
   }
+
   if (upperProcessing != -1) {
     if (!isUpperDeployed) {
       if (upperProcessing == UPPER_DEPLOYED) {
-        Serial.println("Deployed!");
+        Serial.println("FULL Deployed!");
+
+        topProcessing = TOP_UNDEPLOYED;
+        
         upperProcessing = -1;
         isUpperDeployed = true;
 
@@ -191,8 +212,35 @@ void loop()
     }
   }
 
+
+  if (topProcessing != -1) {
+    if (!isTopDeployed) {
+      if (topProcessing == TOP_DEPLOYED) {
+        Serial.println("Top Deployed!");
+        topProcessing = TOP_DEPLOYED;
+        isTopDeployed = true;
+      } else {
+        topProcessing--;
+        Serial.println(topProcessing);
+        currentTopPWM = getPWM(topProcessing);
+      }
+    } else {
+      if (topProcessing == TOP_UNDEPLOYED) {
+        Serial.println("Top UNDeployed!");
+        isTopDeployed = false;
+        topProcessing = TOP_UNDEPLOYED;
+      } else {
+        topProcessing++;
+        Serial.println(topProcessing);
+        currentTopPWM = getPWM(topProcessing);
+      }
+    }
+  }
+
   pwm.setPWM(LOWER_SERVO, 0, currentLowerPWM);
   pwm.setPWM(UPPER_SERVO, 0, currentUpperPWM);
+  pwm.setPin(LIGHT, currentLightPWM, 0);
+  pwm.setPWM(TOP_SERVO, 0, currentTopPWM);
   
   delay(20);
 }
