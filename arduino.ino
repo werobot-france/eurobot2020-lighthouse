@@ -25,6 +25,8 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 #define TOP_UNDEPLOYED 300
 #define TOP_DEPLOYED 0
 
+#define SWITCH 7
+
 void setAngle(int slot, int angle) {
   pwm.setPWM(slot, 0, getPWM(angle));
 }
@@ -55,8 +57,11 @@ int upperProcessing = -1;
 bool isTopDeployed = false;
 int topProcessing = -1;
 
+int waitFor = 20;
+
 void setup()
 {
+  engaged = false;
   Serial.begin(9600);
   pwm.begin();
   pwm.setPWMFreq(60);
@@ -69,10 +74,12 @@ void setup()
 void loop()
 {
   if (!engaged) {
-    switchStatus = !digitalRead(2);
+    switchStatus = digitalRead(SWITCH);
     if (switchStatus) {
       currentLightPWM = LIGHT_ON;
       Serial.println("Engaged! Toggle lower deployment");
+      topProcessing = -1;
+      waitFor = 20;
       if (!isLowerDeployed) {
         lowerProcessing = LOWER_UNDEPLOYED;
       }
@@ -196,7 +203,7 @@ void loop()
       }
     } else {
       if (upperProcessing == UPPER_UNDEPLOYED) {
-        Serial.println("UNDeployed!");
+        Serial.println("Full UNDeployed!");
         upperProcessing = -1;
         isUpperDeployed = false;
 
@@ -235,6 +242,7 @@ void loop()
         currentTopPWM = getPWM(topProcessing);
       }
     }
+    waitFor = 5;
   }
 
   pwm.setPWM(LOWER_SERVO, 0, currentLowerPWM);
@@ -242,5 +250,5 @@ void loop()
   pwm.setPin(LIGHT, currentLightPWM, 0);
   pwm.setPWM(TOP_SERVO, 0, currentTopPWM);
   
-  delay(20);
+  delay(waitFor);
 }
