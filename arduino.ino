@@ -23,9 +23,12 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
 #define TOP_SERVO 13
 #define TOP_UNDEPLOYED 300
+#define TOP_SAFE 150
 #define TOP_DEPLOYED 0
 
-#define SWITCH 7
+#define ON_SWITCH 7
+#define OFF_SWITCH 4
+#define BUZZER 5
 
 void setAngle(int slot, int angle) {
   pwm.setPWM(slot, 0, getPWM(angle));
@@ -35,10 +38,11 @@ int getPWM(int angle) {
   return map(angle, 0, 300, SERVOMIN, SERVOMAX);
 }
 
-bool lock = false;
+//bool lock = false;
 
 bool engaged = false;
-bool switchStatus = false;
+bool onSwitchStatus = false;
+bool offSwitchStatus = false;
 
 int currentPharePwm = 600;
 
@@ -68,23 +72,40 @@ void setup()
   currentLowerPWM = getPWM(LOWER_UNDEPLOYED);
   currentUpperPWM = getPWM(UPPER_UNDEPLOYED);
   currentLightPWM = LIGHT_OFF;
-  currentTopPWM = getPWM(TOP_UNDEPLOYED);
+  currentTopPWM = getPWM(TOP_SAFE);
+  
+  // startup sound
+  tone(BUZZER, 440, 200); // la440
 }
 
 void loop()
 {
   if (!engaged) {
-    switchStatus = digitalRead(SWITCH);
-    if (switchStatus) {
+    onSwitchStatus = !digitalRead(ON_SWITCH);
+    offSwitchStatus = !digitalRead(OFF_SWITCH);
+    if (offSwitchStatus && isLowerDeployed && isUpperDeployed) {
+      // sol392
+      tone(BUZZER, 392, 500);
+      Serial.println("OFF SWITCH!!");
+
+      currentTopPWM = getPWM(TOP_SAFE);
+      currentLightPWM = LIGHT_OFF;
+      topProcessing = -1;
+      waitFor = 20;
+      if (isUpperDeployed && isLowerDeployed) {
+        upperProcessing = UPPER_DEPLOYED;
+      }
+      engaged = true;
+    }
+    if (onSwitchStatus && !isLowerDeployed) {
+      // re293
+      tone(BUZZER, 293, 500);
       currentLightPWM = LIGHT_ON;
       Serial.println("Engaged! Toggle lower deployment");
       topProcessing = -1;
       waitFor = 20;
       if (!isLowerDeployed) {
         lowerProcessing = LOWER_UNDEPLOYED;
-      }
-      if (isUpperDeployed && isLowerDeployed) {
-        upperProcessing = UPPER_DEPLOYED;
       }
       engaged = true;
     }
